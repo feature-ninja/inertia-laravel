@@ -7,7 +7,9 @@ use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Str;
 use GuzzleHttp\Promise\PromiseInterface;
+use Illuminate\Support\Stringable;
 use Illuminate\Support\Traits\Macroable;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Responsable;
@@ -98,14 +100,11 @@ class Response implements Responsable
 
         $props = $this->resolvePropertyInstances($props, $request);
 
-        $url = $this->urlResolver
-            ? ($this->urlResolver)($request)
-            : $request->getBaseUrl() . $request->getRequestUri();
 
         $page = [
             'component' => $this->component,
             'props' => $props,
-            'url' => $url,
+            'url' => $this->url($request),
             'version' => $this->version,
         ];
 
@@ -155,5 +154,22 @@ class Response implements Responsable
         }
 
         return $props;
+    }
+
+    protected function url(Request $request): string
+    {
+        if ($this->urlResolver) {
+            return ($this->urlResolver)($request);
+        }
+
+        $url = Str::after($request->url(), $request->getSchemeAndHttpHost());
+        $url = Str::start($url, '/');
+
+        $queryString = $request->getQueryString();
+        if ($queryString === null) {
+            return $url;
+        }
+
+        return $url.'?'.urldecode($queryString);
     }
 }
